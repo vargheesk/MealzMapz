@@ -1,0 +1,292 @@
+<!-- add_community.html -->
+{% extends "base.html" %}
+
+{% block title %}Add Community Place - MealMap{% endblock %}
+
+{% block head %}
+<style>
+    /* Ensure Leaflet map displays properly */
+    #map {
+        height: 300px !important;
+        width: 100% !important;
+        z-index: 1;
+    }
+    
+    /* Fix for Leaflet controls */
+    .leaflet-control-container {
+        font-family: inherit;
+    }
+    
+    /* Ensure map tiles load properly */
+    .leaflet-tile-pane {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Add Community Food Place</h1>
+            <p class="text-gray-600">Help others discover places that provide affordable or free meals</p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+            <form method="POST" action="{{ url_for('add_community_place') }}"onsubmit="return validateLocation()">
+                <!-- Place Name -->
+                <div class="mb-6">
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                        Place Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="title" 
+                           name="title" 
+                           required
+                           placeholder="e.g., Sree Krishna Temple, Kudumbashri"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                </div>
+
+                <!-- Place Type -->
+                <div class="mb-6">
+                    <label for="cost_type" class="block text-sm font-medium text-gray-700 mb-2">
+                        Place Type <span class="text-red-500">*</span>
+                    </label>
+                    <select id="cost_type" 
+                            name="cost_type" 
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                        <option value="">Select place type</option>
+                        <option value="free">Free</option>
+                        
+                        <option value="budget_friendly">Budget Friendly</option>
+                    </select>
+                </div>
+
+                <!-- Operating Hours -->
+                <div class="mb-6">
+                    <label for="timings" class="block text-sm font-medium text-gray-700 mb-2">
+                        Operating Hours <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="timings" 
+                           name="timings" 
+                           required
+                           placeholder="e.g., Daily 12:00 PM - 2:00 PM, Weekdays 11 AM - 3 PM"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                    <p class="text-sm text-gray-500 mt-1">When is food typically available?</p>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-6">
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Description <span class="text-red-500">*</span>
+                    </label>
+                    <textarea id="description" 
+                              name="description" 
+                              required
+                              rows="4"
+                              placeholder="Describe what food is available, who can access it, any requirements or conditions..."
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent resize-none"></textarea>
+                </div>
+
+                <!-- Image URL (Optional) -->
+                <div class="mb-6">
+                    <label for="image_url" class="block text-sm font-medium text-gray-700 mb-2">
+                        Image URL (Optional)
+                    </label>
+                    <input type="url" 
+                           id="image_url" 
+                           name="image_url"
+                           placeholder="https://postimg.cc/your-image or https://imgur.com/your-image"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                    <p class="text-sm text-gray-500 mt-1">Direct link to an image from Postimg, Imgur, etc.</p>
+                </div>
+
+                <!-- Location -->
+                <div class="mb-8">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div class="flex items-center mb-3">
+                            <i class="bi bi-geo-alt text-green-600 mr-2"></i>
+                            <h3 class="font-medium text-gray-900">Place Location <span class="text-red-500">*</span></h3>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="location_type" value="pin" class="mr-2" checked>
+                                    <span class="text-sm">Pin on Map</span>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="location_type" value="current" class="mr-2">
+                                    <span class="text-sm">Use Current Location</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <p class="text-sm text-gray-600 mt-2 mb-3">Click the map to mark the exact location</p>
+                        
+                        <!-- Map Container -->
+                        <div class="relative">
+                            <div id="map" class="w-full rounded-lg border border-gray-300 overflow-hidden"></div>
+                        </div>
+                        
+                        <!-- Hidden inputs for coordinates -->
+                        <input type="hidden" id="lat" name="lat" required>
+                        <input type="hidden" id="lon" name="lon" required>
+                        
+                        <div id="location-status" class="mt-2 text-sm"></div>
+                    </div>
+                </div>
+
+                <!-- Hidden field for category -->
+                <input type="hidden" name="category" value="Place">
+
+                <!-- Submit Button -->
+                <div class="flex space-x-4">
+                    <button type="submit" 
+                            class="flex-1 bg-primary-green text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-xl">
+                        <i class="bi bi-plus-circle mr-2"></i>
+                        Add Place
+                    </button>
+                    <a href="{{ url_for('posts') }}" 
+                       class="flex-1 bg-gray-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-600 transition-all duration-300 text-center">
+                        <i class="bi bi-x-circle mr-2"></i>
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+function validateLocation() {
+    const lat = document.getElementById('lat').value;
+    const lon = document.getElementById('lon').value;
+
+    if (!lat || !lon) {
+        alert("Please select a location on the map before submitting.");
+        return false; // Prevent form submission
+    }
+    return true; // Allow form submission
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a bit for CSS to fully load
+    setTimeout(function() {
+        // Initialize map with Thrissur, Kerala as center (user's location)
+        let map = L.map('map', {
+            center: [10.5276, 76.2144], // Thrissur coordinates
+            zoom: 13,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            dragging: true
+        });
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        let marker = null;
+        const latInput = document.getElementById('lat');
+        const lonInput = document.getElementById('lon');
+        const locationStatus = document.getElementById('location-status');
+
+        // Force map to refresh its size
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+
+        // Handle map clicks
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            
+            marker = L.marker([lat, lng]).addTo(map);
+            latInput.value = lat;
+            lonInput.value = lng;
+            
+            locationStatus.innerHTML = '<span class="text-green-600"><i class="bi bi-check-circle mr-1"></i>Location selected</span>';
+            
+            // Mark the pin radio button as selected
+            document.querySelector('input[value="pin"]').checked = true;
+        });
+
+        // Handle current location
+        document.querySelector('input[value="current"]').addEventListener('change', function() {
+            if (this.checked) {
+                locationStatus.innerHTML = '<span class="text-blue-600"><i class="bi bi-arrow-clockwise mr-1"></i>Getting current location...</span>';
+                
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        map.setView([lat, lng], 15);
+                        
+                        if (marker) {
+                            map.removeLayer(marker);
+                        }
+                        
+                        marker = L.marker([lat, lng]).addTo(map);
+                        latInput.value = lat;
+                        lonInput.value = lng;
+                        
+                        locationStatus.innerHTML = '<span class="text-green-600"><i class="bi bi-check-circle mr-1"></i>Current location selected</span>';
+                    }, function(error) {
+                        let errorMessage = 'Could not get current location';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = 'Location permission denied';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = 'Location information unavailable';
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = 'Location request timed out';
+                                break;
+                        }
+                        locationStatus.innerHTML = '<span class="text-red-600"><i class="bi bi-exclamation-circle mr-1"></i>' + errorMessage + '</span>';
+                        
+                        // Fall back to pin mode
+                        document.querySelector('input[value="pin"]').checked = true;
+                    }, {
+                        timeout: 10000,
+                        enableHighAccuracy: true
+                    });
+                } else {
+                    locationStatus.innerHTML = '<span class="text-red-600"><i class="bi bi-exclamation-circle mr-1"></i>Geolocation not supported by browser</span>';
+                    document.querySelector('input[value="pin"]').checked = true;
+                }
+            }
+        });
+
+        // Handle pin mode selection
+        document.querySelector('input[value="pin"]').addEventListener('change', function() {
+            if (this.checked) {
+                locationStatus.innerHTML = '<span class="text-gray-600"><i class="bi bi-cursor mr-1"></i>Click on the map to select location</span>';
+            }
+        });
+
+        // Set initial status
+        locationStatus.innerHTML = '<span class="text-gray-600"><i class="bi bi-cursor mr-1"></i>Click on the map to select location</span>';
+
+    }, 500); // Wait 500ms for everything to load
+});
+</script>
+{% endblock %}

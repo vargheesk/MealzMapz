@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MealMap - Reduce Food Waste, Feed Communities{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-green': '#10b981',
+                        'primary-blue': '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-green: #10b981;
+            --primary-blue: #3b82f6;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #8b5cf6 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .hover-scale {
+            transition: transform 0.3s ease;
+        }
+        
+        .hover-scale:hover {
+            transform: translateY(-5px);
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        /* Leaflet map fixes */
+        .leaflet-container {
+            background: #ddd;
+            outline: 0;
+        }
+        
+        .leaflet-tile {
+            border-radius: 0;
+        }
+        
+        /* Ensure Leaflet controls appear above other elements */
+        .leaflet-control-container {
+            font-family: inherit;
+            pointer-events: none;
+        }
+        
+        .leaflet-control {
+            pointer-events: auto;
+        }
+        
+        /* Fix for Leaflet attribution in Tailwind */
+        .leaflet-control-attribution {
+            font-size: 11px !important;
+            background: rgba(255, 255, 255, 0.8) !important;
+        }
+        
+        /* Prevent Tailwind from interfering with Leaflet popup */
+        .leaflet-popup-content {
+            margin: 13px 19px;
+            line-height: 1.4;
+        }
+        
+        .leaflet-popup-content h1,
+        .leaflet-popup-content h2,
+        .leaflet-popup-content h3,
+        .leaflet-popup-content h4,
+        .leaflet-popup-content h5,
+        .leaflet-popup-content h6 {
+            margin: 0 0 10px;
+            font-weight: bold;
+        }
+    </style>
+    
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <a href="{{ url_for('index') if url_for else '/' }}" class="flex items-center">
+                        <div class="bg-primary-green text-white rounded-lg p-2 mr-3 shadow-lg">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">MealMap</span>
+                    </a>
+                </div>
+
+                <!-- Navigation Links -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="{{ url_for('index') if url_for else '/' }}" class="text-gray-700 hover:text-primary-green transition-colors font-medium">Home</a>
+                    <a href="{{ url_for('map_view') if url_for else '/map' }}" class="text-gray-700 hover:text-primary-green transition-colors font-medium">Map</a>
+                    <a href="{{ url_for('posts') if url_for else '/posts' }}" class="text-gray-700 hover:text-primary-green transition-colors font-medium">Food Posts</a>
+                    
+                    {% if session and session.user_id %}
+                        <a href="{{ url_for('add_post') if url_for else '/add_post' }}" class="text-gray-700 hover:text-primary-green transition-colors font-medium">Add Post</a>
+                        <div class="relative group">
+                            <button class="flex items-center text-gray-700 hover:text-primary-green transition-colors font-medium">
+                                {{ session.user_name or 'User' }}
+                                <svg class="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                            <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200">
+                                <div class="py-1">
+                                    <a href="{{ url_for('profile') if url_for else '/profile' }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">Profile</a>
+                                    <a href="{{ url_for('logout') if url_for else '/logout' }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">Logout</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{{ url_for('login') if url_for else '/login' }}" class="text-gray-700 hover:text-primary-green transition-colors font-medium">Login</a>
+                        <a href="{{ url_for('signup') if url_for else '/signup' }}" class="bg-primary-green text-white px-6 py-2 rounded-full hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold">Sign Up</a>
+                    {% endif %}
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-gray-700 hover:text-primary-green transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="md:hidden hidden border-t border-gray-200">
+            <div class="px-2 pt-2 pb-3 space-y-1 bg-white">
+                <a href="{{ url_for('index') if url_for else '/' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Home</a>
+                <a href="{{ url_for('map_view') if url_for else '/map' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Map</a>
+                <a href="{{ url_for('posts') if url_for else '/posts' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Food Posts</a>
+                
+                {% if session and session.user_id %}
+                    <a href="{{ url_for('add_post') if url_for else '/add_post' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Add Post</a>
+                    <a href="{{ url_for('profile') if url_for else '/profile' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Profile</a>
+                    <a href="{{ url_for('logout') if url_for else '/logout' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') if url_for else '/login' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Login</a>
+                    <a href="{{ url_for('signup') if url_for else '/signup' }}" class="block px-3 py-2 text-gray-700 hover:text-primary-green hover:bg-gray-50 rounded-md transition-colors">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% if get_flashed_messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} bg-{% if category == 'error' %}red{% elif category == 'success' %}green{% elif category == 'warning' %}yellow{% else %}blue{% endif %}-100 border border-{% if category == 'error' %}red{% elif category == 'success' %}green{% elif category == 'warning' %}yellow{% else %}blue{% endif %}-400 text-{% if category == 'error' %}red{% elif category == 'success' %}green{% elif category == 'warning' %}yellow{% else %}blue{% endif %}-700 px-4 py-3 rounded-lg mb-4 shadow-sm" role="alert">
+                        <span class="block sm:inline font-medium">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Company Info -->
+                <div class="md:col-span-2">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-primary-green text-white rounded-lg p-2 mr-3 shadow-lg">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold">MealMap</span>
+                    </div>
+                    <p class="text-gray-400 mb-4 max-w-md">Connecting communities to reduce food waste and help those in need. Together, we're building a world where no good food goes to waste.</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+                    <ul class="space-y-2">
+                        <li><a href="{{ url_for('index') if url_for else '/' }}" class="text-gray-400 hover:text-white transition-colors">Home</a></li>
+                        <li><a href="{{ url_for('map_view') if url_for else '/map' }}" class="text-gray-400 hover:text-white transition-colors">Map</a></li>
+                        <li><a href="{{ url_for('posts') if url_for else '/posts' }}" class="text-gray-400 hover:text-white transition-colors">Food Posts</a></li>
+                        <li><a href="{{ url_for('signup') if url_for else '/signup' }}" class="text-gray-400 hover:text-white transition-colors">Join Us</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Contact</h3>
+                    <div class="space-y-2 text-gray-400">
+                        <p class="flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                            </svg>
+                            info@mealmap.com
+                        </p>
+                        <p class="flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                            </svg>
+                            +1 (555) 123-4567
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center">
+                <p class="text-gray-400">&copy; 2025 MealMap. All rights reserved. Made with ❤️ for communities worldwide.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Leaflet JS - Load before custom scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+            crossorigin=""></script>
+    
+    <!-- Mobile menu toggle -->
+    <script>
+        function askAndStoreLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    fetch("{{ url_for('set_location') }}", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: `lat=${position.coords.latitude}&lon=${position.coords.longitude}`
+                    }).then(() => {
+                        console.log("Location saved in session");
+                    }).catch(err => console.error("Failed to save location", err));
+                });
+            }
+        }
+        document.addEventListener("DOMContentLoaded", askAndStoreLocation);
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', function() {
+                    mobileMenu.classList.toggle('hidden');
+                });
+                
+                // Close mobile menu when clicking outside
+                document.addEventListener('click', function(event) {
+                    if (!mobileMenuButton.contains(event.target) && !mobileMenu.contains(event.target)) {
+                        mobileMenu.classList.add('hidden');
+                    }
+                });
+            }
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

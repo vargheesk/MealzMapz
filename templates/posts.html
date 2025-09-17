@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+
+{% block title %}Food Posts & Places - MealMap{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Food Posts & Places</h1>
+                <p class="text-lg text-gray-600">Browse available food from donors and community places</p>
+            </div>
+            
+            <div class="mt-4 md:mt-0 space-x-2">
+                <button onclick="getCurrentLocation()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Use My Location
+                </button>
+            </div>
+        </div>
+        
+        <!-- Filter Form -->
+        <form method="GET" action="{{ url_for('posts') }}" class="bg-white rounded-lg shadow-md p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+                <!-- Category Filter (replaces Content Type) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select name="category" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all" {{ 'selected' if request.args.get('category', 'all') == 'all' }}>All</option>
+                        <option value="Food" {{ 'selected' if request.args.get('category') == 'Food' }}>Food Posts</option>
+                        <option value="Place" {{ 'selected' if request.args.get('category') == 'Place' }}>Community Places</option>
+                    </select>
+                </div>
+                
+                <!-- Cost Type Filter (replaces Food Type) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cost Type</label>
+                    <select name="cost_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all" {{ 'selected' if request.args.get('cost_type', 'all') == 'all' }}>All Types</option>
+                        <option value="free" {{ 'selected' if request.args.get('cost_type') == 'free' }}>Free Food</option>
+                        <option value="discounted" {{ 'selected' if request.args.get('cost_type') == 'discounted' }}>Discounted Food</option>
+                        <option value="budget_friendly" {{ 'selected' if request.args.get('cost_type') == 'budget_friendly' }}>Budget Friendly</option>
+                    </select>
+                </div>
+                
+
+                
+                
+                
+                <!-- Apply Button -->
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Sort and Location Input -->
+            <div class="flex flex-wrap gap-4 items-center">
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium text-gray-700">Sort by:</label>
+                    <select name="sort" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="recent" {{ 'selected' if request.args.get('sort', 'recent') == 'recent' }}>Most Recent</option>
+                        <option value="distance" {{ 'selected' if request.args.get('sort') == 'distance' }}>Distance</option>
+                        <option value="expiry" {{ 'selected' if request.args.get('sort') == 'expiry' }}>Expiry Time</option>
+                    </select>
+                </div>
+                
+                <!-- Hidden location inputs -->
+                <input type="hidden" name="user_lat" id="user_lat" value="{{ request.args.get('user_lat', '') }}">
+                <input type="hidden" name="user_lon" id="user_lon" value="{{ request.args.get('user_lon', '') }}">
+                
+                <div id="locationStatus" class="text-sm text-gray-600">
+                    {% if request.args.get('user_lat') and request.args.get('user_lon') %}
+                        Location: {{ "%.4f"|format(request.args.get('user_lat')|float) }}, {{ "%.4f"|format(request.args.get('user_lon')|float) }}
+                    {% else %}
+                        Click "Use My Location" to sort by distance
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Listings Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+        {% for listing in listings %}
+        <div class="food-item bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-105" 
+             onclick="window.location.href='{{ url_for('post_details', post_id=listing.id) }}'">
+            
+            <div class="relative">
+                {% if listing.image_url %}
+                <img src="{{ listing.image_url }}" alt="{{ listing.title }}" class="w-full h-36 object-cover">
+                {% else %}
+                <div class="w-full h-36 bg-gray-200 flex items-center justify-center">
+                    <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                {% endif %}
+                
+                <!-- Category Badge -->
+                <div class="absolute top-2 left-2">
+                    {% if listing.category == 'Food' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        Food Post
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-800">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clip-rule="evenodd"></path>
+                        </svg>
+                         Place
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Cost Type Badge -->
+                <div class="absolute top-2 right-2">
+                    {% if listing.cost_type == 'free' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-sm text-xs font-medium bg-green-100 text-green-800">
+                        FREE
+                    </span>
+                    {% elif listing.cost_type == 'discounted' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-orange-100 text-orange-800">
+                        DISCOUNTED
+                    </span>
+                    {% elif listing.cost_type == 'budget_friendly' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">
+                        BUDGET
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <h3 class="font-semibold text-gray-900 mb-1 text-sm line-clamp-1">{{ listing.title }}</h3>
+                <p class="text-gray-600 text-xs mb-2 opacity-80">{{ listing.location }}</p>
+                
+                <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
+                    <span>{{ "%.1f"|format(listing.distance) if listing.distance else "" }}</span>
+                    <span>{{ listing.created_at[:10] if listing.created_at else "" }}</span>
+                </div>
+                
+                <!-- Additional info for different categories -->
+                {% if listing.category == 'food_post' and listing.expiry_time %}
+                <div class="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                    Expires: {{ listing.expiry_time[:16] if listing.expiry_time else "No expiry" }}
+                </div>
+                {% elif listing.category == 'community_place' and listing.operating_hours %}
+                <div class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    Hours: {{ listing.operating_hours }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- No Results Message -->
+    {% if not listings %}
+    <div class="text-center py-12">
+        <div class="mx-auto max-w-md">
+            <div class="mb-6">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
+            <p class="text-gray-500 mb-6">Try adjusting your filters or expanding your search radius.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-2xl">
+            <h2 id="modalTitle" class="text-xl font-semibold text-gray-900"></h2>
+            <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="p-0">
+            <!-- Image -->
+            <div id="modalImageContainer" class="relative">
+                <img id="modalImage" src="" alt="" class="w-full h-64 object-cover">
+                <div id="modalImagePlaceholder" class="w-full h-64 bg-gray-200 flex items-center justify-center hidden">
+                    <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-6">
+                <div id="modalContent">
+                    <!-- Dynamic content will be inserted here -->
+                </div>
+                
+                <!-- Map Tile -->
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold mb-3">Location</h3>
+                    <div id="modalMapTile" class="h-32 rounded-lg border bg-gray-100"></div>
+                    <div class="mt-3 text-center">
+                        <button id="viewOnMapBtn" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                            View on Map
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet CSS and JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    let userLocation = null;
+    let modalMapTile = null;
+    let currentModalData = null;
+
+    // Get user's current location
+    function getCurrentLocation() {
+        const statusDiv = document.getElementById('locationStatus');
+        statusDiv.textContent = 'Getting your location...';
+        
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude
+                    };
+                    
+                    // Update hidden form inputs
+                    document.getElementById('user_lat').value = userLocation.lat;
+                    document.getElementById('user_lon').value = userLocation.lon;
+                    
+                    statusDiv.textContent = `Location found: ${userLocation.lat.toFixed(4)}, ${userLocation.lon.toFixed(4)}`;
+                    
+                    // Submit the form to refresh with location-based filtering
+                    document.querySelector('form').submit();
+                },
+                error => {
+                    statusDiv.textContent = 'Unable to get your location';
+                    console.error('Location error:', error);
+                }
+            );
+        } else {
+            statusDiv.textContent = 'Geolocation not supported';
+        }
+    }
+
+    // Detail Modal Functions
+    function openDetailModal(listingId) {
+        fetch(`/api/listing/${listingId}`)
+        .then(response => response.json())
+        .then(data => {
+            currentModalData = data;
+            
+            document.getElementById('modalTitle').textContent = data.title;
+            
+            const modalImage = document.getElementById('modalImage');
+            const modalImagePlaceholder = document.getElementById('modalImagePlaceholder');
+            
+            if (data.image_url) {
+                modalImage.src = data.image_url;
+                modalImage.classList.remove('hidden');
+                modalImagePlaceholder.classList.add('hidden');
+            } else {
+                modalImage.classList.add('hidden');
+                modalImagePlaceholder.classList.remove('hidden');
+            }
+            
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = generateModalContent(data);
+            
+            document.getElementById('detailModal').classList.remove('hidden');
+            setTimeout(() => initModalMapTile(data.latitude, data.longitude), 100);
+        })
+        .catch(error => {
+            console.error('Error loading listing details:', error);
+            showToast('Error loading details', 'error');
+        });
+    }
+
+    function generateModalContent(data) {
+        const createdDate = new Date(data.created_at).toLocaleDateString();
+        const categoryLabel = data.category === 'food_post' ? 'Food Post' : 'Community Place';
+        const costTypeLabel = data.cost_type ? data.cost_type.toUpperCase() : 'N/A';
+        
+        let additionalInfo = '';
+        if (data.category === 'food_post' && data.expiry_time) {
+            const expiryDate = new Date(data.expiry_time).toLocaleString();
+            additionalInfo = `
+                <div class="bg-red-50 rounded-lg p-3">
+                    <h5 class="font-medium text-red-900 text-sm">Expires</h5>
+                    <p class="text-red-700 text-sm">${expiryDate}</p>
+                </div>
+            `;
+        } else if (data.category === 'community_place' && data.operating_hours) {
+            additionalInfo = `
+                <div class="bg-emerald-50 rounded-lg p-3">
+                    <h5 class="font-medium text-emerald-900 text-sm">Operating Hours</h5>
+                    <p class="text-emerald-700 text-sm">${data.operating_hours}</p>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="space-y-4">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900">${data.title}</h3>
+                        <p class="text-sm text-gray-600 mt-1">${categoryLabel}</p>
+                        <p class="text-sm text-gray-600">${data.location || 'Location not specified'}</p>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        data.cost_type === 'free' ? 'bg-green-100 text-green-800' : 
+                        data.cost_type === 'discounted' ? 'bg-orange-100 text-orange-800' :
+                        data.cost_type === 'budget_friendly' ? 'bg-yellow-100 text-yellow-800' : 
+                        'bg-gray-100 text-gray-800'
+                    }">
+                        ${costTypeLabel}
+                    </span>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 mb-2">Description</h4>
+                    <p class="text-gray-700">${data.description || 'No description available'}</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    ${additionalInfo}
+                    <div class="bg-purple-50 rounded-lg p-3">
+                        <h5 class="font-medium text-purple-900 text-sm">Posted On</h5>
+                        <p class="text-purple-700 text-sm">${createdDate}</p>
+                    </div>
+                </div>
+                
+                ${data.contact_info ? `
+                <div class="border-t pt-4">
+                    <h4 class="font-medium text-gray-900 mb-3">Contact Information</h4>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-sm text-gray-700">${data.contact_info}</p>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    function closeDetailModal() {
+        document.getElementById('detailModal').classList.add('hidden');
+        if (modalMapTile) {
+            modalMapTile.remove();
+            modalMapTile = null;
+        }
+        currentModalData = null;
+    }
+
+    function initModalMapTile(lat, lon) {
+        const mapContainer = document.getElementById('modalMapTile');
+        mapContainer.innerHTML = '';
+        
+        setTimeout(() => {
+            if (modalMapTile) modalMapTile.remove();
+            
+            modalMapTile = L.map('modalMapTile', {
+                zoomControl: false,
+                dragging: false,
+                touchZoom: false,
+                doubleClickZoom: false,
+                scrollWheelZoom: false
+            }).setView([lat, lon], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(modalMapTile);
+            
+            L.marker([lat, lon]).addTo(modalMapTile);
+            
+            document.getElementById('viewOnMapBtn').onclick = () => {
+                window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+            };
+        }, 100);
+    }
+
+    // Toast notification system
+    function showToast(message, type = 'success') {
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) existingToast.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast fixed top-20 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium transition-all duration-300 ${
+            type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-green-100 text-green-800 border border-green-200'
+        }`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('opacity-100'), 10);
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-x-full');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Close modal when clicking outside
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDetailModal();
+        });
+        
+        // Add keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDetailModal();
+            }
+        });
+    });
+</script>
+
+<style>
+    .line-clamp-1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .toast {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    
+    .backdrop-blur-sm {
+        backdrop-filter: blur(4px);
+    }
+    
+    .food-item {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .food-item:hover {
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    #detailModal {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    #detailModal .bg-white {
+        animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+        from { 
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    
+    @media (max-width: 640px) {
+        .grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        
+        .food-item .p-4 {
+            padding: 0.75rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

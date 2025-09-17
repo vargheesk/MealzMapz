@@ -1,0 +1,165 @@
+<!-- templates/auth/signup.html -->
+{% extends "base.html" %}
+
+{% block title %}Sign Up - MealMap{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <div class="flex justify-center">
+                <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+            </div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Join MealMap
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Help reduce food waste in your community
+            </p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-8">
+            <form action="{{ url_for('signup') }}" method="POST" class="space-y-6" id="signupForm">
+                <!-- Name -->
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name
+                    </label>
+                    <input type="text" id="name" name="name" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Enter your full name">
+                </div>
+                
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                        Email Address
+                    </label>
+                    <input type="email" id="email" name="email" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Enter your email address">
+                </div>
+                
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                        Password
+                    </label>
+                    <input type="password" id="password" name="password" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Create a secure password">
+                </div>
+                
+                <!-- Account Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        Account Type
+                    </label>
+                    <div class="space-y-3">
+                        <!-- Individual Option -->
+                        <div class="border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors">
+                            <label class="flex items-start cursor-pointer">
+                                <input type="radio" name="role" value="individual" 
+                                       class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                       checked onchange="toggleOrganisationFields(this.value)">
+                                <div class="ml-3">
+                                    <div class="text-sm font-medium text-gray-900">Individual</div>
+                                    <div class="text-xs text-gray-500">Find food and add community places</div>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <!-- Organisation Option -->
+                        <div class="border border-gray-200 rounded-lg p-3 hover:border-blue-300 transition-colors">
+                            <label class="flex items-start cursor-pointer">
+                                <input type="radio" name="role" value="organisation" 
+                                       class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                       onchange="toggleOrganisationFields(this.value)">
+                                <div class="ml-3">
+                                    <div class="text-sm font-medium text-gray-900">Organisation</div>
+                                    <div class="text-xs text-gray-500">Share surplus food from your business/NGO</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Organisation-specific fields -->
+                <div id="organisationFields" class="space-y-4" style="display: none;">
+                    <div class="border-t border-gray-200 pt-4">
+                        <h3 class="text-sm font-medium text-gray-900 mb-3">Organisation Details</h3>
+                        
+                        <!-- Organisation Type -->
+                        <div>
+                            <label for="organisation_type" class="block text-sm font-medium text-gray-700 mb-1">
+                                Organisation Type
+                            </label>
+                            <select id="organisation_type" name="organisation_type" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select type</option>
+                                <option value="Restaurant/Hotel">Restaurant/Hotel</option>
+                                <option value="ngo">NGO</option>
+                                <option value="catering">Catering Service</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Organisation Description -->
+                        <div>
+                            <label for="organisation_description" class="block text-sm font-medium text-gray-700 mb-1">
+                                About Your Organisation (Optional)
+                            </label>
+                            <textarea id="organisation_description" name="organisation_description" rows="2"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Brief description about your organisation and the type of food you typically share"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Terms -->
+                <div class="flex items-center">
+                    <input type="checkbox" id="terms" name="terms" required
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="terms" class="ml-2 block text-sm text-gray-900">
+                        I agree to the <a href="#" class="text-blue-600 hover:text-blue-500">Terms of Service</a> and <a href="#" class="text-blue-600 hover:text-blue-500">Privacy Policy</a>
+                    </label>
+                </div>
+                
+                <!-- Submit Button -->
+                <div>
+                    <button type="submit" 
+                            class="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors font-medium">
+                        Create Account
+                    </button>
+                </div>
+                
+                <!-- Login Link -->
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">
+                        Already have an account? 
+                        <a href="{{ url_for('login') }}" class="font-medium text-blue-600 hover:text-blue-500">
+                            Sign in here
+                        </a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleOrganisationFields(role) {
+    const organisationFields = document.getElementById('organisationFields');
+    
+    if (role === 'organisation') {
+        organisationFields.style.display = 'block';
+    } else {
+        organisationFields.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

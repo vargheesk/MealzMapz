@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MealMap - Find Food & Places Near You</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        #map {
+            height: 500px !important;
+            width: 100% !important;
+            min-height: 500px !important;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+        }
+        
+        .map-container {
+            height: 500px !important;
+            min-height: 500px !important;
+            overflow: visible !important;
+        }
+        
+        .leaflet-container {
+            height: 500px !important;
+            width: 100% !important;
+        }
+        #map {
+    height: 500px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+.map-container {
+    height: 500px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+.leaflet-container {
+    max-width: 100% !important;
+    max-height: 500px !important;
+}
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+            <i class="fas fa-map-marked-alt text-green-600 mr-3"></i>
+            Find Food & Places Near You
+        </h1>
+
+        <!-- Location Controls -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            {% if not has_location %}
+            <div class="text-center py-8">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                    <i class="fas fa-location-arrow text-blue-500 text-3xl mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Enable Location Access</h3>
+                    <p class="text-gray-600 mb-4">To find food and places near you, please allow location access or enter your location manually.</p>
+                    <button onclick="getCurrentLocation()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition duration-300">
+                        <i class="fas fa-crosshairs mr-2"></i>Get Current Location
+                    </button>
+                </div>
+                
+                <div class="text-left max-w-md mx-auto">
+                    <h4 class="font-semibold text-gray-700 mb-3">Or enter location manually:</h4>
+                    <form method="GET" action="/map" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="number" name="lat" step="any" placeholder="Latitude" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                            <input type="number" name="lon" step="any" placeholder="Longitude" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Radius (km)</label>
+                            <input type="number" name="radius" value="{{ radius }}" min="0.5" max="50" step="0.5" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                        </div>
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition duration-300">
+                            <i class="fas fa-search mr-2"></i>Search Area
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <!-- Location Update Controls -->
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center text-gray-700">
+                    <i class="fas fa-map-marker-alt text-green-600 mr-2"></i>
+                    <span class="font-medium">Current Location:</span>
+                    <span class="ml-2 text-sm bg-gray-100 px-3 py-1 rounded-full">{{ "%.4f, %.4f"|format(user_lat, user_lon) }}</span>
+                </div>
+                
+                <form method="GET" action="/map" class="flex items-center gap-3">
+                    <input type="hidden" name="lat" value="{{ user_lat }}">
+                    <input type="hidden" name="lon" value="{{ user_lon }}">
+                    <label class="text-sm font-medium text-gray-700">Radius:</label>
+                    <input type="number" name="radius" value="{{ radius }}" min="0.5" max="50" step="0.5" class="w-20 px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                    <span class="text-sm text-gray-500">km</span>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-lg text-sm transition duration-300">
+                        Update
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if has_location %}
+        <!-- Map and Results -->
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Map Column -->
+            <div class="lg:col-span-2 map-wrapper">
+                <div class="bg-white rounded-xl shadow-lg p-4">
+                    <div id="map" class="map-container rounded-lg"></div>
+                </div>
+                
+                <!-- Legend -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>Map Legend
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-green-500 rounded-full mr-3 border-2 border-white shadow"></div>
+                            <span class="text-sm text-gray-700">Free Food</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-yellow-500 rounded-full mr-3 border-2 border-white shadow"></div>
+                            <span class="text-sm text-gray-700">Discounted Food</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-blue-500 rounded-full mr-3 border-2 border-white shadow"></div>
+                            <span class="text-sm text-gray-700">Free Places</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-orange-500 rounded-full mr-3 border-2 border-white shadow"></div>
+                            <span class="text-sm text-gray-700">Budget Places</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-red-500 rounded-full mr-3 border-2 border-white shadow"></div>
+                            <span class="text-sm text-gray-700">Your Location</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Listings Column -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-list-ul text-green-600 mr-2"></i>
+                        Available Nearby ({{ listings|length }})
+                    </h3>
+                    
+                    {% if listings %}
+                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                        {% for listing in listings %}
+                        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition duration-300 cursor-pointer" onclick="focusOnMarker({{ listing.lat }}, {{ listing.lon }})">
+                            <div class="flex items-start">
+                                {% if listing.image_url %}
+                                <img src="{{ listing.image_url }}" alt="{{ listing.title }}" class="w-16 h-16 object-cover rounded-lg mr-3 flex-shrink-0">
+                                {% else %}
+                                <div class="w-16 h-16 bg-gray-200 rounded-lg mr-3 flex-shrink-0 flex items-center justify-center">
+                                    <i class="fas fa-{% if listing.category == 'Food' %}utensils{% else %}map-marker-alt{% endif %} text-gray-400"></i>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="font-semibold text-gray-800 text-sm truncate">{{ listing.title }}</h4>
+                                        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex-shrink-0 ml-2">
+                                            {{ listing.distance }}km
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="flex flex-wrap items-center gap-1 mb-2">
+                                        {% if listing.cost_type == 'free' %}
+                                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Free</span>
+                                        {% elif listing.cost_type == 'discounted' %}
+                                        <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">Discounted</span>
+                                        {% else %}
+                                        <span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">Budget</span>
+                                        {% endif %}
+                                        
+                                        <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{{ listing.category }}</span>
+                                    </div>
+                                    
+                                    <p class="text-gray-600 text-xs leading-relaxed mb-2 line-clamp-2">{{ listing.description[:60] }}...</p>
+                                    
+                                    <div class="flex items-center justify-between text-xs text-gray-500">
+                                        <span>
+                                            <i class="fas fa-user mr-1"></i>{{ listing.user_name }}
+                                        </span>
+                                        {% if listing.expiry_time %}
+                                        <span class="text-red-600">
+                                            <i class="fas fa-clock mr-1"></i>Expires soon
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-search text-3xl mb-4"></i>
+                        <p class="text-lg font-medium mb-2">No items found</p>
+                        <p class="text-sm">Try increasing your search radius or check back later.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    
+    <script>
+        let map;
+        let markers = [];
+
+        {% if has_location %}
+        // Initialize map
+        function initializeMap() {
+            console.log('Initializing map...');
+            
+            const mapContainer = document.getElementById('map');
+            if (!mapContainer) {
+                console.error('Map container not found!');
+                return;
+            }
+            
+            console.log('Map container dimensions:', mapContainer.offsetWidth, 'x', mapContainer.offsetHeight);
+
+            try {
+                map = L.map('map', {
+                    zoomControl: true,
+                    attributionControl: true,
+                    preferCanvas: false
+                }).setView([{{ user_lat }}, {{ user_lon }}], 13);
+                
+                console.log('Map object created');
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                console.log('Tiles added');
+
+                // Force map to invalidate size multiple times
+                setTimeout(() => {
+                    map.invalidateSize(true);
+                    map.fitBounds(map.getBounds());
+                    console.log('Map size invalidated');
+                }, 100);
+                
+                setTimeout(() => {
+                    map.invalidateSize(true);
+                }, 500);
+
+                // Add user location marker
+                L.marker([{{ user_lat }}, {{ user_lon }}], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    })
+                }).addTo(map).bindPopup('<b>Your Location</b>');
+
+                // Add radius circle
+                L.circle([{{ user_lat }}, {{ user_lon }}], {
+                    color: '#3b82f6',
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.1,
+                    radius: {{ radius * 1000 }} // Convert km to meters
+                }).addTo(map);
+
+                // Add listing markers
+                
+{% for listing in listings %}
+                addMarker(
+                {{ listing.lat }}, 
+                {{ listing.lon }}, 
+                {{ listing.title|tojson }}, 
+                {{ listing.category|tojson }}, 
+                {{ listing.cost_type|tojson }}, 
+                {{ listing.description[:100]|tojson }}, 
+                {{ listing.distance }}, 
+                {{ listing.user_name|tojson }}
+                );
+                {% endfor %}
+
+                console.log('Map initialized successfully');
+            } catch (error) {
+                console.error('Error initializing map:', error);
+            }
+        }
+
+        function addMarker(lat, lon, title, category, costType, description, distance, userName) {
+            let iconColor = getMarkerColor(category, costType);
+            
+            let marker = L.marker([lat, lon], {
+                icon: L.icon({
+                    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${iconColor}.png`,
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map);
+
+            let popupContent = `
+                <div class="p-2">
+                    <h3 class="font-bold text-lg mb-2">${title}</h3>
+                    <div class="mb-2">
+                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-2">${category}</span>
+                        <span class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">${costType}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">${description}...</p>
+                    <div class="text-xs text-gray-500">
+                        <div><i class="fas fa-user mr-1"></i>${userName}</div>
+                        <div><i class="fas fa-map-marker-alt mr-1"></i>${distance}km away</div>
+                    </div>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent);
+            markers.push({marker, lat, lon});
+        }
+
+        function getMarkerColor(category, costType) {
+            if (category === 'Food') {
+                return costType === 'discounted' ? 'yellow' : 'green';
+            } else {
+                return costType === 'budget_friendly' ? 'orange' : 'blue';
+            }
+        }
+
+        function focusOnMarker(lat, lon) {
+            if (map) {
+                map.setView([lat, lon], 16);
+                // Find and open the popup for this marker
+                markers.forEach(({marker, lat: markerLat, lon: markerLon}) => {
+                    if (markerLat === lat && markerLon === lon) {
+                        marker.openPopup();
+                    }
+                });
+            }
+        }
+
+        // Initialize map when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initializeMap, 200);
+        });
+
+        // Backup initialization
+        window.addEventListener('load', function() {
+            if (!map) {
+                initializeMap();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (map) {
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+        });
+        {% endif %}
+
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        window.location.href = `/map?lat=${lat}&lon=${lon}&radius={{ radius }}`;
+                    },
+                    function(error) {
+                        alert('Error getting location: ' + error.message);
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by this browser.');
+            }
+        }
+    </script>
+</body>
+</html>
