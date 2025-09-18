@@ -409,9 +409,16 @@ def logout():
 def profile():
     
     try:
-
+        # select * from listings where user_id = '-session_user_id-' and category = 'food' order by created_at desc;
         user_posts = supabase.table('listings').select('*').eq('user_id', session['user_id']).eq('category', 'Food').order('created_at', desc=True).execute()
+
+
+
+        # select * from listings where user_id = '-session_user_id-' and category = 'place' order by created_at desc;
         user_places = supabase.table('listings').select('*').eq('user_id', session['user_id']).eq('category', 'Place').order('created_at', desc=True).execute()
+
+
+        # select * from users where id = '-session_user_id-';
         user_data = supabase.table('users').select('*').eq('id', session['user_id']).execute()
 
 
@@ -457,6 +464,7 @@ def profile():
 def edit_profile():
     
     try:
+        # select * from users where id = '-session_user_id-';
         user_data = supabase.table('users').select('*').eq('id', session['user_id']).execute()
         user = user_data.data[0] if user_data.data else None
         
@@ -521,7 +529,6 @@ def edit_profile():
 
 @app.route('/map')
 def map_view():
-    """Map view with location-based filtering"""
     try:
         
         user_lat = request.args.get('lat')
@@ -532,7 +539,7 @@ def map_view():
         if not user_lat or not user_lon:
             user_lat, user_lon = get_user_location()
         
-        # Convert to float and set default radius
+        
         try:
             radius = float(radius)
             if radius <= 0:
@@ -542,22 +549,20 @@ def map_view():
         
         listings_data = []
         
-        # If user location is available, filter by radius
+        
         if user_lat and user_lon:
             try:
                 user_lat = float(user_lat)
                 user_lon = float(user_lon)
                 
-                # Get all active listings from database
+                # select listings.*, users.name, users.role, users.organisation_type from listings join users on listings.user_id = users.id;
                 all_listings_response = supabase.table('listings').select('*, users!listings_user_id_fkey(name, role, organisation_type)').execute()
                 all_listings = all_listings_response.data or []
                 
                 # Filter listings within radius
                 for listing in all_listings:
                     try:
-                        # Skip listings without valid coordinates
-                        if not listing.get('lat') or not listing.get('lon'):
-                            continue
+                        
                         
                         listing_lat = float(listing['lat'])
                         listing_lon = float(listing['lon'])
@@ -567,7 +572,7 @@ def map_view():
                         
                         # Include if within radius
                         if distance <= radius:
-                            # Prepare listing data for map
+                            
                             listing_data = {
                                 'id': listing['id'],
                                 'title': listing.get('title', ''),
@@ -589,7 +594,7 @@ def map_view():
                         print(f"Error processing listing {listing.get('id')}: {e}")
                         continue
                 
-                # Sort by distance
+               
                 listings_data.sort(key=lambda x: x['distance'])
                 
                 print(f"Found {len(listings_data)} listings within {radius}km of user location")
@@ -630,10 +635,12 @@ def map_view():
 
 @app.route('/posts')
 def posts():
-    """Food posts and places listing with filters"""
+    
     try:
         delete_expired_listings()
 
+
+        # select * from listings order by created_at desc;
         all_listings = supabase.table('listings').select('*').order('created_at', desc=True).execute()
 
         category_filter = request.args.get('category', 'all')
@@ -678,9 +685,9 @@ def posts():
 
 @app.route('/post/<int:post_id>')
 def post_details(post_id):
-    """View detailed post/place information with follow functionality"""
+ 
     try:
-        # Get post details with user information
+        # select listings.*, users.name, users.role, users.organisation_type, users.organisation_description from listings join users on listings.user_id = users.id where listings.id = '-post_id-';
         post_data = supabase.table('listings').select('*, users!listings_user_id_fkey(name, role, organisation_type, organisation_description)').eq('id', post_id).execute()
         
         print("\n\n")
@@ -703,12 +710,6 @@ def post_details(post_id):
         if user_lat and user_lon:
             post['distance'] = calculate_distance(user_lat, user_lon, float(post['lat']), float(post['lon']))
         
-
-        print("\n\n")
-        print(post)
-        print("\n\n")
-        print(post_data.data)
-        print("\n\n")
         return render_template('post_details.html', post=post, is_following=is_following, session=session)
     except Exception as e:
         print(f"Post details error: {e}")
@@ -729,13 +730,13 @@ def post_details(post_id):
 
 
 
-
+# follow button Clicks works
 @app.route('/follow/<user_id>', methods=['POST'])
 @login_required
 def follow_user(user_id):
     try:
         
-        
+        # select id from subscriptions where subscriber_id = '-session_user_id-' and followed_user_id = '-user_id-';
         existing_follow = supabase.table('subscriptions').select('id').eq('subscriber_id', session['user_id']).eq('followed_user_id', user_id).execute()
         
         if existing_follow.data:
@@ -773,12 +774,10 @@ def follow_user(user_id):
 
 
 
-
-# Separate routes for surplus food and community places
 @app.route('/add_surplus_food', methods=['GET', 'POST'])
 @login_required
 def add_surplus_food():
-    """Add surplus food post"""
+    
     if request.method == 'POST':
         title = request.form.get('title')
         description = request.form.get('description')
@@ -788,10 +787,7 @@ def add_surplus_food():
         image_url = request.form.get('image_url')
         expiry_datetime = request.form.get('expiry_datetime')
         
-        # Validation
-        if not all([title, description, lat, lon, cost_type, expiry_datetime]):
-            flash('Please fill in all required fields.', 'error')
-            return render_template('add_surplus_food.html')
+
         
         try:
             expiry_time = datetime.fromisoformat(expiry_datetime.replace('T', ' '))
@@ -806,7 +802,7 @@ def add_surplus_food():
                 'lon': lon,
                 'image_url': image_url if image_url else None,
                 'expiry_time': expiry_time.isoformat(),
-                'timings': None  # Not used for food posts
+                'timings': None  
             }
             
             response = supabase.table('listings').insert(new_listing).execute()
@@ -839,7 +835,7 @@ def add_surplus_food():
 @app.route('/add_community_place', methods=['GET', 'POST'])
 @login_required
 def add_community_place():
-    """Add community place"""
+
     if request.method == 'POST':
         title = request.form.get('title')
         description = request.form.get('description')
@@ -849,10 +845,7 @@ def add_community_place():
         timings = request.form.get('timings')
         image_url = request.form.get('image_url')
         
-        # Validation
-        if not all([title, description, lat, lon, cost_type, timings]):
-            flash('Please fill in all required fields.', 'error')
-            return render_template('add_community.html')
+
         
         try:
             new_listing = {
@@ -864,7 +857,7 @@ def add_community_place():
                 'lat': lat,
                 'lon': lon,
                 'image_url': image_url if image_url else None,
-                'expiry_time': None,  # Not used for places
+                'expiry_time': None,  
                 'timings': timings
             }
             
@@ -881,10 +874,19 @@ def add_community_place():
     
     return render_template('add_community.html')
 
+
+
+
+
+
+
+
+
+
 @app.route('/edit_food_post/<int:post_id>', methods=['GET', 'POST'])
 @login_required
 def edit_food_post(post_id):
-    """Edit food post"""
+    
     try:
         post_data = supabase.table('listings').select('*').eq('id', post_id).eq('user_id', session['user_id']).eq('category', 'Food').execute()
         print(post_data)
@@ -909,11 +911,6 @@ def edit_food_post(post_id):
             else:
                 
                 image_url = None
-
-
-            if not all([title, description, cost_type, expiry_datetime]):
-                flash('Please fill in all required fields.', 'error')
-                return render_template('edit_food_post.html', post=post)
             
             expiry_time = datetime.fromisoformat(expiry_datetime.replace('T', ' '))
             
@@ -946,22 +943,12 @@ def edit_food_post(post_id):
 @app.route('/edit_community_place/<int:place_id>', methods=['GET', 'POST'])
 @login_required
 def edit_community_place(place_id):
-    """Edit community place"""
+    
     try:
         place_data = supabase.table('listings').select('*').eq('id', place_id).eq('user_id', session['user_id']).eq('category', 'Place').execute()
-        
-        if not place_data.data:
-            flash('Community place not found or you do not have permission to edit it.', 'error')
-            return redirect(url_for('profile'))
-        
         place = place_data.data[0]
 
-
-
-        # print("\n",place,"\n") #-------------------------------------------------------------------------------------------------------
-        
-
-
+        print("\n\n",place)
 
         if request.method == 'POST':
             title = request.form.get('title')
@@ -970,9 +957,6 @@ def edit_community_place(place_id):
             timings = request.form.get('timings')
             image_url = request.form.get('image_url')
             
-            if not all([title, description,cost_type, timings]):
-                flash('Please fill in all required fields.', 'error')
-                return render_template('edit_community_place.html', place=place,place_id=place_id)
             
             update_data = {
                 'title': title,
@@ -1005,16 +989,9 @@ def edit_community_place(place_id):
 @app.route('/delete_post/<int:post_id>', methods=['POST'])
 @login_required
 def delete_post(post_id):
-    """Delete post or place"""
+    
     try:
-        # Verify ownership
-        post_data = supabase.table('listings').select('*').eq('id', post_id).eq('user_id', session['user_id']).execute()
-        
-        if not post_data.data:
-            flash('Post not found or you do not have permission to delete it.', 'error')
-            return redirect(url_for('profile'))
-        
-        # Delete the post
+        # delete from listings where id = '-post_id-';
         response = supabase.table('listings').delete().eq('id', post_id).execute()
         
         if response.data:
@@ -1039,16 +1016,20 @@ def delete_post(post_id):
 
 
 
-# Legacy route for backward compatibility
 @app.route('/add_post', methods=['GET', 'POST'])
 @login_required
 def add_post():
-    """Legacy add post route - redirects to surplus food"""
     return redirect(url_for('add_surplus_food'))
 
+
+
+
+
+
+# golbalisting the location by adding in session
 @app.route('/set_location', methods=['POST'])
 def set_location():
-    """Set user location in session"""
+    
     lat = request.form.get('lat')
     lon = request.form.get('lon')
     
@@ -1083,6 +1064,14 @@ def internal_error(error):
 
 
 
+@app.route("/ping")
+def ping():
+    try:
+        
+        response = supabase.table("users").select("id").limit(1).execute()
+        return "OK", 200
+    except Exception as e:
+        return f"Error: {str(e)}", 500
 
 
 
