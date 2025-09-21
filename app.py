@@ -125,7 +125,7 @@ def notify_followers_about_new_post(user_id, post_title, user_name):
         followers_data = supabase.table('subscriptions').select('subscriber_id, users!subscriptions_subscriber_id_fkey(email, name)').eq('followed_user_id', user_id).execute()
         
         if followers_data.data:
-            subject = f"New Food Available from {user_name} - MealMap"
+            subject = f"New Food Available from {user_name} - MealzMapz"
             
             for follower in followers_data.data:
                 if follower.get('users') and follower['users'].get('email'):
@@ -134,14 +134,14 @@ def notify_followers_about_new_post(user_id, post_title, user_name):
                     
                     body = f"""Hello {follower_name},
 
-                        {user_name} has just posted new surplus food on MealMap:
+                        {user_name} has just posted new surplus food on MealzMapz:
 
                         "{post_title}"
 
-                        Visit MealMap now to view the details and claim this food before it expires.
+                        Visit MealzMapz now to view the details and claim this food before it expires.
 
                         Best regards,
-                        The MealMap Team"""
+                        The MealzMapz Team"""
                     
                     
 
