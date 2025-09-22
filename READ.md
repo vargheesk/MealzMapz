@@ -57,6 +57,7 @@ MealzMapz is an interactive web platform designed to connect food donors with pe
     MAIL_USERNAME=your-mail-username
     MAIL_PASSWORD=your-mail-password
     MAIL_DEFAULT_SENDER=your-default-sender
+    
     ```
     (Note: The `.env` file is ignored by Git for security).
 5.  **Run the Application**:
