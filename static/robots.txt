@@ -1,0 +1,17 @@
+
+
+# /static/robots.txt
+User-agent: *
+Disallow: /login
+Disallow: /signup
+Disallow: /profile
+Disallow: /edit_profile
+Disallow: /add_post
+Disallow: /set_location
+Disallow: /edit_food_post/
+Disallow: /edit_community_place/
+Disallow: /delete_post/
+Disallow: /follow/
+
+# Replace with your actual domain
+Sitemap: https://mealzmapz.vercel.app/sitemap.xml

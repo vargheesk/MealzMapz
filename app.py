@@ -7,7 +7,7 @@ from math import radians, cos, sin, asin, sqrt
 from flask import Flask, render_template, request, redirect, url_for, flash,  session
 from flask_mail import Mail, Message
 from supabase import create_client, Client
-
+from flask import make_response, send_from_directory
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 
@@ -209,9 +209,60 @@ def delete_expired_listings():
 
 
 
-#==============================================================================================================================================================================================================
-# -----------------------------------------------------------------------------------------------     Routes starting    -----------------------------------------------------------------------------------
-#=============================================================================================================================================================================================================
+#==============================================================================================================================================================================
+
+#                                                                                     Routes starting    
+
+#==============================================================================================================================================================================
+
+
+
+#SEO Routes
+
+
+
+# Add this route to serve robots.txt
+# This assumes you placed robots.txt in a folder named 'static'
+@app.route('/robots.txt')
+def robots_txt():
+    # Ensure you have a 'static' folder in the same directory as app.py
+    return send_from_directory(app.static_folder, 'robots.txt')
+
+
+# Add this route to dynamically generate your sitemap
+@app.route('/sitemap.xml')
+def sitemap():
+    try:
+        # Get all listings from Supabase
+        # select id, updated_at from listings order by updated_at desc;
+        listings_response = supabase.table('listings').select('id, updated_at').order('updated_at', desc=True).execute()
+        listings = listings_response.data or []
+
+        # Get the current time in YYYY-MM-DD format
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        
+        # IMPORTANT: Replace with your actual domain
+        domain = "https://mealzmapz.vercel.app/" 
+
+        xml = render_template('sitemap.xml', 
+                              listings=listings, 
+                              now=now, 
+                              domain=domain)
+        
+        response = make_response(xml)
+        response.headers['Content-Type'] = 'application/xml'
+        return response
+
+    except Exception as e:
+        print(f"Error generating sitemap: {e}")
+        return "Error generating sitemap", 500
+
+
+
+
+
+
+
 
 
 
@@ -1078,4 +1129,6 @@ def ping():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    # Add static_folder='static' if it's not there
+    app.static_folder = 'static' 
     app.run(host='0.0.0.0', port=port, debug=True)
