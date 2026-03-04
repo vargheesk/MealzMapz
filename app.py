@@ -296,12 +296,6 @@ def login():
             })
             
             if auth_response.user:
-                # eamil verictn check
-                if not getattr(auth_response.user, 'email_confirmed', True):
-                    flash('Please verify your email before logging in. Check your inbox for the verification link.', 'warning')
-                    supabase.auth.sign_out()
-                    return render_template('auth/login.html')
-                
                 # Get user profile from database
                 #select * from users where id = 'user_id';
                 user_data = supabase.table('users').select('*').eq('id', auth_response.user.id).execute()
@@ -326,8 +320,6 @@ def login():
             print(f"Login error: {e}")
             if 'Invalid login credentials' in error_message:
                 flash('Invalid email or password.', 'error')
-            elif 'Email not confirmed' in error_message:
-                flash('Please verify your email before logging in. Check your inbox for the verification link.', 'warning')
 
 
     return render_template('auth/login.html')
@@ -394,7 +386,7 @@ def signup():
                 profile_response = supabase.table('users').insert(user_profile).execute()
                 
                 if profile_response.data:
-                    flash(f'Account created successfully! Please check your email ({email}) and click the verification link before logging in.', 'success')
+                    flash('Account created successfully! You can now log in.', 'success')
                     return redirect(url_for('login'))
                 else:
                     flash('Failed to create user profile. Please try again.', 'error')
